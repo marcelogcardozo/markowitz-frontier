@@ -1,8 +1,11 @@
 import streamlit as st
+from src import utils
 import yfinance as yf
 import altair as alt
 import pandas as pd
 import numpy as np
+
+
 
 st.set_page_config(
     page_title='Markowitz Portfolio Optimization',
@@ -14,7 +17,7 @@ st.set_page_config(
 
 st.title('Markowitz Portfolio Optimization')
 
-available_tickers = ['BTC-USD', 'ETH-USD', 'AVAX-USD', 'ABEV', 'MSFT34.SA', 'PETR4.SA', 'VALE3.SA', 'ITSA4.SA', 'WRLD11.SA'] #, 'BBDC4', 'BBAS3', 'ABEV3', 'WEGE3', 'VVAR3', 'MGLU3', 'PETR3', 'PETR4', 'VALE3', 'VALE5', 'ITUB3', 'ITUB4', 'BBDC3', 'BBDC4', 'BBAS3', 'BBAS5', 'ABEV3', 'ABEV5', 'WEGE3', 'WEGE4', 'VVAR3', 'VVAR4', 'MGLU3', 'MGLU4', 'PETR3', 'PETR4', 'VALE3', 'VALE5', 'ITUB3', 'ITUB4', 'BBDC3', 'BBDC4', 'BBAS3', 'BBAS5', 'ABEV3', 'ABEV5', 'WEGE3', 'WEGE4', 'VVAR3', 'VVAR4', 'MGLU3', 'MGLU4', 'PETR3', 'PETR4', 'VALE3', 'VALE5', 'ITUB3', 'ITUB4', 'BBDC3', 'BBDC4', 'BBAS3', 'BBAS5', 'ABEV3', 'ABEV5', 'WEGE3', 'WEGE4', 'VVAR3', 'VVAR4', 'MGLU3', 'MGLU4', 'PETR3', 'PETR4', 'VALE3', 'VALE5', 'ITUB3', 'ITUB4', 'BBDC3', 'BBDC4', 'BBAS3', 'BBAS5', 'ABEV3', 'ABEV5', 'WEGE3', 'WEGE4', 'VVAR3', 'VVAR4', 'MGLU3', 'MGLU4', 'PETR3', 'PETR4', 'VALE3', 'VALE5', 'ITUB3', 'ITUB4', 'BBDC3', 'BBDC4', 'BBAS3', 'BBAS5', 'ABEV3', 'ABEV5', 'WEGE3', 'WEGE4', 'VVAR3']
+available_tickers = ['AAPL34.SA', 'MXRF11.SA', 'ARRI11.SA', 'MSFT34.SA', 'PETR4.SA', 'VALE3.SA', 'ITSA4.SA', 'WRLD11.SA']
 
 selected_tickers = st.sidebar.multiselect(
     ' ',
@@ -61,24 +64,24 @@ if calculate_button:
         ticker_historical_data.columns = [ticker]
         portfolio = pd.concat([portfolio, ticker_historical_data], axis=1)
 
-    st.markdown('### Portfolio Historical Data')
-    st.line_chart(portfolio)
-
     portfolio = portfolio.ffill()
-    normalized_portfolio = portfolio / portfolio.iloc[0]
-    
     return_pct = portfolio.pct_change()
     annual_return = return_pct.mean() * 252
+    cumulative_return = (return_pct + 1).cumprod() - 1
 
+    annual_cov = return_pct.cov() * 252
+    matrix_correlation = return_pct.corr()
+
+
+    st.markdown('### Portfolio Historical Data Returns')
+    st.line_chart(cumulative_return, use_container_width=True)
+    
     col1, col2 = st.columns([0.8, 1.2])
 
     with col1:
         col1.markdown('### Annual Return')
         df_annual_return = pd.DataFrame(annual_return, columns=['Return'])
         col1.dataframe(df_annual_return, use_container_width=True, column_config={'Return': {'format': '{:.2%}'}})
-
-    annual_cov = return_pct.cov() * 252
-    matrix_correlation = return_pct.corr()
 
     with col2:
         col2.markdown('### Correlation Matrix')
@@ -137,7 +140,6 @@ if calculate_button:
         min_volatility_portfolio.columns = ['Value']
         col1.dataframe(min_volatility_portfolio, use_container_width=True)
                 
-
     with col2:
         col2.markdown('### Optimal Portfolio')
         max_sharpe = portfolios['Sharpe Ratio'].max()
@@ -145,4 +147,17 @@ if calculate_button:
         max_sharpe_portfolio.columns = ['Value']
         col2.dataframe(max_sharpe_portfolio, use_container_width=True)
 
+    st.markdown('### Backtesting')
+    st.markdown('#### Minimal Volatility Portfolio')
+
+    dict_pesos = utils.get_weights_per_ticker(min_volatility_portfolio)
+    min_volatility_serie_cumulative_return = utils.get_serie_returns_based_on_weight(portfolio.copy(), dict_pesos)
     
+    st.line_chart(min_volatility_serie_cumulative_return, use_container_width=True)
+
+    st.markdown('#### Optimal Portfolio')
+
+    dict_pesos = utils.get_weights_per_ticker(max_sharpe_portfolio)
+    max_sharpe_serie_cumulative_return = utils.get_serie_returns_based_on_weight(portfolio.copy(), dict_pesos)
+    
+    st.line_chart(max_sharpe_serie_cumulative_return, use_container_width=True)
