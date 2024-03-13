@@ -4,8 +4,8 @@ import yfinance as yf
 import altair as alt
 import pandas as pd
 import numpy as np
-
-
+from requests import get
+import pickle
 
 st.set_page_config(
     page_title='Markowitz Portfolio Optimization',
@@ -15,9 +15,28 @@ st.set_page_config(
 
 )
 
+def get_tickers() -> list:
+
+    url = 'https://www.dadosdemercado.com.br/bolsa/acoes'
+
+    r = get(url)
+    r.raise_for_status()
+
+    df = pd.read_html(r.text)[0]
+    df.sort_values(by='Ticker', ascending=True, inplace=True)
+
+    tickers = [ticker + '.SA' for ticker in df['Ticker'].unique().tolist()]
+
+    with open('tickers.pkl', 'wb') as f:
+        pickle.dump(tickers, f)    
+
+    return tickers
+
+tickers = pickle.load(open('tickers.pkl', 'rb'))
+
 st.title('Markowitz Portfolio Optimization')
 
-available_tickers = ['AAPL34.SA', 'MXRF11.SA', 'ARRI11.SA', 'MSFT34.SA', 'PETR4.SA', 'VALE3.SA', 'ITSA4.SA', 'WRLD11.SA']
+available_tickers = tickers
 
 selected_tickers = st.sidebar.multiselect(
     ' ',
@@ -60,9 +79,20 @@ if calculate_button:
         kwargs = {'start' : min_date, 'end' : max_date}
 
     for ticker in selected_tickers:
+        
         ticker_historical_data = yf.download(ticker, **kwargs)[['Adj Close']]
+
+        if yf.shared._ERRORS.get(ticker) is not None:
+            st.error(f'ERROR: {yf.shared._ERRORS.get(ticker)}')
+            selected_tickers.remove(ticker)
+            continue
+        
         ticker_historical_data.columns = [ticker]
         portfolio = pd.concat([portfolio, ticker_historical_data], axis=1)
+    
+    portfolio.dropna(how='all', axis=1, inplace=True)
+
+    selected_tickers = portfolio.columns.tolist()
 
     portfolio = portfolio.ffill()
     return_pct = portfolio.pct_change()
@@ -71,7 +101,6 @@ if calculate_button:
 
     annual_cov = return_pct.cov() * 252
     matrix_correlation = return_pct.corr()
-
 
     st.markdown('### Portfolio Historical Data Returns')
     st.line_chart(cumulative_return, use_container_width=True)
