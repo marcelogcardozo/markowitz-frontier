@@ -1,7 +1,4 @@
-import pickle
-
 import pandas as pd
-from requests import get
 
 
 def reset_config(st) -> None:
@@ -53,23 +50,6 @@ def set_basic_info(st) -> None:
 
     st.subheader("Resultados")
     st.divider()
-
-
-def get_tickers() -> list:
-    url = "https://www.dadosdemercado.com.br/bolsa/acoes"
-
-    r = get(url)
-    r.raise_for_status()
-
-    df = pd.read_html(r.text)[0]
-    df.sort_values(by="Ticker", ascending=True, inplace=True)
-
-    tickers = [ticker + ".SA" for ticker in df["Ticker"].unique().tolist()]
-
-    with open("tickers.pkl", "wb") as f:
-        pickle.dump(tickers, f)
-
-    return tickers
 
 
 def get_weights_per_ticker(portfolio: pd.DataFrame) -> dict:
