@@ -29,7 +29,7 @@ Se preferir rodar a aplicação localmente, siga os passos abaixo:
 1. Clone o repositório:
 
    ```bash
-   git clone https://github.com/seu-usuario/markowitz-frontier.git
+   git clone https://github.com/marcelogcardozo/markowitz-frontier.git
    ```
 
 2. Acesse o diretório do projeto:
